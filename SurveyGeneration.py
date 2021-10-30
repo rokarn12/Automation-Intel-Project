@@ -13,6 +13,7 @@ import win32com.client as win32
 import tkinter as tk
 from PIL import Image, ImageTk
 import getpass
+import webbrowser
 
 
 # Function to start the entire process - takes in user input
@@ -44,6 +45,59 @@ def startSurvey(root):
     # button to submit user input - calls createSurvey function
     submit = tk.Button(surveyFrame, text = 'Get survey link', bg='white', fg='navy', command = lambda: createSurvey(instructorName_var, courseName_var, courseDate_var, root, surveyFrame))
     submit.grid(row=3,column=1)
+
+    manualBypasser = tk.Button(surveyFrame, text = 'Bypass automation step', bg='white', fg='navy', command = lambda: manualBypass(instructorName_var, courseName_var, courseDate_var, root, surveyFrame))
+    manualBypasser.grid(row=4, column=1)
+
+def manualBypass(instructorName_var, courseName_var, courseDate_var, root, surveyFrame):
+    courseName = courseName_var.get()
+    courseDate = courseDate_var.get()
+    instructorName = instructorName_var.get()
+
+    # cleaning up user input
+    if "intro" in courseName.lower():
+        courseAbbrev = "IUWINTRO"
+        courseName = "Introduction to FPGAs and the Intel Quartus Prime Software"
+    elif "debug" in courseName.lower():
+        courseAbbrev = "IUWSDBUG"
+        courseName = "Introduction to Simulation and Debug of FPGAs"
+    elif "nios" in courseName.lower():
+        courseAbbrev = "IUWNIOS"
+        courseName = "Embedded Nios Processor & Platform Designer"
+    else:
+        courseAbbrev = courseName[0:5]
+    # cleaning up user input
+    cleaned_courseDate = courseDate.replace("/","")
+
+    # Create a new folder in the To_be_processed folder of the SharePoint
+    username = getpass.getuser()
+    toBeProcessed_path = f'C:\\Users\\{username}\\OneDrive - Intel Corporation\\Documents - FPGA Academic Council\\Workshops\\Workshop invite list universities\\To_be_Processed'
+    os.chdir(toBeProcessed_path)
+    os.makedirs(courseAbbrev + '_' + cleaned_courseDate + '_' + instructorName)
+    newFolder = toBeProcessed_path + '\\' + courseAbbrev + '_' + cleaned_courseDate + '_' + instructorName + '\\'
+    certificateGeneratorFolder = f'C:\\Users\\{username}\\OneDrive - Intel Corporation\\Documents - FPGA Academic Council\\Workshops\\Workshop invite list universities\\Certificate_Generator\\'
+
+    # create a copy of the certificate generator template and place it in this project's folder
+    for file in os.listdir(certificateGeneratorFolder):
+        if file[-5:] == '.xlsm':
+            shutil.copy2(certificateGeneratorFolder + file, newFolder + courseAbbrev + '_' + cleaned_courseDate + '_' + instructorName + '.xlsm')
+
+    #surveyLink = "Paste the link to B8 in Certificate sheet"
+    webbrowser.open('https://intel.az1.qualtrics.com/catalog/')
+    surveyFrame.destroy()
+    bypassFrame = tk.Frame(root, height = 800, width = 1000, bg='navy')
+    bypassFrame.place(relx=0.5, rely=0.5, anchor="center")
+
+    survLink_var = tk.StringVar()
+    survLink = tk.Label(bypassFrame, text = 'Anonymous Survey Link:', bg='white', fg='navy', font=('calibre',10, 'bold'))
+    survLink_entry = tk.Entry(bypassFrame, textvariable = survLink_var, font=('calibre',10,'normal'))
+    survLink.grid(row = 2, column = 0)
+    survLink_entry.grid(row = 2, column = 1)
+    #surveyLink = survLink_var.get()
+
+    bypass = tk.Button(bypassFrame, text="Populate the Excel file", command = lambda: populateExcel(newFolder, courseAbbrev, cleaned_courseDate, instructorName, survLink_var.get(), courseDate, courseName), bg = 'blue', fg='white', height = 2, width=35)
+    bypass.grid(row = 4, column = 1)
+    
 
 # creates a survey using Chrome automation in Qualtrics site
 def createSurvey(instructorName_var, courseName_var, courseDate_var, root, surveyFrame):
@@ -109,7 +163,7 @@ def createSurvey(instructorName_var, courseName_var, courseDate_var, root, surve
     folder.send_keys(Keys.CONTROL + "a")
     folder.send_keys(Keys.DELETE)
     folder.send_keys("Surveys Workshop") # the name of the folder that all the survey projects are kept in
-    folder.send_keys(Keys.ENTER)
+    #folder.send_keys(Keys.ENTER)
     folder.send_keys(Keys.TAB)
 
     # clicks the dropdown menu to open it and make the options visible
@@ -189,6 +243,7 @@ def createSurvey(instructorName_var, courseName_var, courseDate_var, root, surve
 
 # accesses the generated excel workbook and fills in the info
 def populateExcel(newFolder, courseAbbrev, cleaned_courseDate, instructorName, surveyLink, courseDate, courseName):
+    #surveyLink = survLink_var.get()
     # open the excel workbook
     generatorFileName = newFolder + courseAbbrev + '_' + cleaned_courseDate + '_' + instructorName + '.xlsm'
     excel = win32.gencache.EnsureDispatch('Excel.Application')
@@ -200,6 +255,7 @@ def populateExcel(newFolder, courseAbbrev, cleaned_courseDate, instructorName, s
     certificateSheet.Cells(8,2).Value = surveyLink
     certificateSheet.Cells(7,2).Value = courseDate
     certificateSheet.Cells(9,2).Value = instructorName
+    certificateSheet.Cells(12,2).Value = instructorName
     certificateSheet.Cells(10,2).Value = courseName
 
     # show the workbook
@@ -257,6 +313,7 @@ logo_label.place(x=0, y=0)
 # button to start the entire process
 surveyStart = tk.Button(root, text="Start Survey Creation", command = lambda: startSurvey(root), font='Raleway', bg="navy", fg="white", height=2, width=25)
 surveyStart.place(relx=0.5, rely=0.5, anchor="center")
+
 
 # exit button
 tk.Button(root, text="Exit", command=root.destroy, bg = "blue", fg="white").place(relx=0.9, rely=0.9)
